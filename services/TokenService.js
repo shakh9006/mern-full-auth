@@ -3,9 +3,11 @@ const jwt = require('jsonwebtoken');
 
 class TokenService {
 	generateTokens(data) {
-		const accessToken = jwt.sign(data, '', {expiresIn: '30min'});
-		const refreshToken = jwt.sign(data, '', {expiresIn: '7d'});
-		return { accessToken, refreshToken };
+		const {JWT_ACCESS_TOKEN, JWT_ACTIVE_TOKEN, JWT_REFRESH_TOKEN} = process.env;
+		const activeToken = jwt.sign(data, JWT_ACTIVE_TOKEN, {expiresIn: '5min'});
+		const accessToken = jwt.sign(data, JWT_ACCESS_TOKEN, {expiresIn: '30min'});
+		const refreshToken = jwt.sign(data, JWT_REFRESH_TOKEN, {expiresIn: '7d'});
+		return { activeToken, accessToken, refreshToken };
 	}
 
 	async saveToken(userId, refreshToken) {
@@ -19,3 +21,5 @@ class TokenService {
 		return await createdToken.save();
 	}
 }
+
+module.exports = new TokenService();

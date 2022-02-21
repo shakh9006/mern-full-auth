@@ -14,6 +14,10 @@ const UserModel = new mongoose.Schema({
 		uniq: true,
 		required: [true, 'Email is required'],
 	},
+	password: {
+		type: String,
+		required: true,
+	},
 	role: {
 		type: Number,
 		default: 0, // 0 = user, 1 = admin
