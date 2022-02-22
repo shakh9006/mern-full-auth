@@ -16,7 +16,7 @@ class RouterException {
 	}
 
 	static UnauthorizedError(message = 'Permission denied') {
-		return new RouterException(500, message);
+		return new RouterException(401, message);
 	}
 }
 

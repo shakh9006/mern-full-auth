@@ -26,6 +26,10 @@ const UserModel = new mongoose.Schema({
 		type: Boolean,
 		default: false,
 	},
+	activationLink: {
+		type: String,
+		required: true,
+	},
 	avatar: {
 		type: String,
 		default: '',

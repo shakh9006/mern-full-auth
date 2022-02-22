@@ -4,7 +4,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const routes = require('./routes/index');
-const routerMiddleware = require('./middlewares/routerMiddleware');
+const routerMiddleware = require('./middlewares/exceptionMiddleware');
 
 const app = express();
 app.use(express.json());
