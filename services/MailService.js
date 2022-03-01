@@ -1,37 +1,58 @@
+const RouterException = require('../exceptions/routerException');
 const nodemailer = require('nodemailer');
+const {google} = require('googleapis');
+const {OAuth2} = google.auth;
+const {
+	CLIENT_URL, OAUTH_PLAYGROUND, MAIL_SERVICE, MAIL_SERVICE_TYPE, MAIL_SERVICE_CLIENT_ID,
+	MAIL_SERVICE_CLIENT_SECRET, MAIL_SERVICE_CLIENT_REFRESH, MAIL_SERVICE_CLIENT_SENDER
+} = process.env;
 
 class MailService {
 	constructor() {
-		const {SMTP_HOST, SMTP_USER, SMTP_PORT, SMTP_PASSWORD} = process.env;
+		const oauth2Client = new OAuth2(
+			MAIL_SERVICE_CLIENT_ID,
+			MAIL_SERVICE_CLIENT_SECRET,
+			MAIL_SERVICE_CLIENT_REFRESH,
+			OAUTH_PLAYGROUND
+		);
+
+		oauth2Client.setCredentials({
+			refresh_token: MAIL_SERVICE_CLIENT_REFRESH
+		});
+
+		const accessToken = oauth2Client.getAccessToken();
 		this.transporter = nodemailer.createTransport({
-			host: SMTP_HOST,
-			port: SMTP_PORT,
-			secure: false, // true for 465, false for other ports
+			service: MAIL_SERVICE,
 			auth: {
-				user: SMTP_USER,
-				pass: SMTP_PASSWORD
-			},
+				type: MAIL_SERVICE_TYPE,
+				user: MAIL_SERVICE_CLIENT_SENDER,
+				clientId: MAIL_SERVICE_CLIENT_ID,
+				clientSecret: MAIL_SERVICE_CLIENT_SECRET,
+				refreshToken: MAIL_SERVICE_CLIENT_REFRESH,
+				accessToken
+			}
 		});
 	}
 
-	async sendMail(to, link) {
+	async sendMail(to, link, text) {
 		try {
-			link = `${process.env.CLIENT_URL}/${link}`
-			await this.transporter.sendMail({
-				from: process.env.SMTP_HOST,
+			link = `${CLIENT_URL}/activate/${link}`;
+			return await this.transporter.sendMail({
+				from: MAIL_SERVICE_CLIENT_SENDER,
 				to,
-				subject: `Activation user from ${process.env.CLIENT_URL}`,
+				subject: `Please ${text} on ${CLIENT_URL}`,
 				html: `
-				<div>
-					<h2>Please click to link to activate your account</h2>
-					<a href="${link}">${link}</a>
-				</div>
-			`
+					<div>
+						<h2>Please click link in below to ${text}</h2>
+						<a href="${link}">${link}</a>
+					</div>
+				`
 			});
-		} catch (e) {
-			console.log(e)
+		} catch (err) {
+			throw RouterException.BadRequest(err);
 		}
 	}
+
 }
 
 module.exports = new MailService();

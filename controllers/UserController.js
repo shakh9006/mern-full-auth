@@ -45,9 +45,10 @@ class UserController {
 		}
 	}
 
-	async getUsers(req, res, next) {
+	async getUserData(req, res, next) {
 		try {
-			const users = await UserService.getUsers();
+			const {id} = req.user;
+			const users = await UserService.getUserData(id);
 			res.send(users)
 		} catch (err) {
 			next(err);
@@ -56,9 +57,83 @@ class UserController {
 
 	async activationLink(req, res, next) {
 		try {
-			const {link} = req.params;
+			const {link} = req.body;
 			await UserService.activate(link);
-			res.redirect(process.env.CLIENT_URL);
+			res.json({message: 'Account activated'});
+		} catch (err) {
+			next(err);
+		}
+	}
+
+	async getAccessToken(req, res, next) {
+		try {
+			const {refreshToken} = req.cookies;
+			const accessToken = await UserService.getAccessToken(refreshToken);
+			res.json({accessToken});
+		} catch (err) {
+			next(err);
+		}
+	}
+
+	async forgotPassword(req, res, next) {
+		try {
+			const {email} = req.body;
+			const data = await UserService.forgotPassword(email);
+			res.json(data);
+		} catch (err) {
+			next(err);
+		}
+	}
+
+	async resetPassword(req, res, next) {
+		try {
+			const { password } = req.body;
+			const {id} = req.user;
+			const data = await UserService.resetPassword(password, id);
+			res.json(data);
+		} catch (err) {
+			next(err);
+		}
+	}
+
+	async updateUserData(req, res, next) {
+		try {
+			const {name} = req.body;
+			const {id} = req.user;
+			const data = await UserService.updateUserData({name}, id);
+			res.json(data);
+		} catch (err) {
+			next(err);
+		}
+	}
+
+	async updateUserRole(req, res, next) {
+		try {
+			const {role} = req.body;
+			const {id} = req.user;
+			console.log('role: ', role);
+			console.log('id: ', id);
+			const data = await UserService.updateUserRole(id, role);
+			res.json(data);
+		} catch (err) {
+			next(err);
+		}
+	}
+
+	async deleteUser(req, res, next) {
+		try {
+			const {id} = req.user;
+			const data = await UserService.deleteUser(id);
+			res.json(data);
+		} catch (err) {
+			next(err);
+		}
+	}
+
+	async getUsersList(req, res, next) {
+		try {
+			const data = await UserService.getUsersList();
+			res.json(data);
 		} catch (err) {
 			next(err);
 		}

@@ -22,8 +22,8 @@ class UserService {
 		const hashedPassword = await bcrypt.hash(password, 3);
 		const activationLink = uuid.v4();
 
-		const user = await User.create({ username, email, password: hashedPassword, activationLink });
-		await MailService.sendMail(email, activationLink);
+		const user = await User.create({username, email, password: hashedPassword, activationLink});
+		await MailService.sendMail(email, activationLink, 'activate your account');
 
 		return await this.userTokenRelations(user);
 	}
@@ -35,12 +35,11 @@ class UserService {
 		if (!validateEmail(email))
 			throw RouterException.BadRequest(`Invalid email format`);
 
-		const user = await this.findOneBy('email', email);
+		const user = await User.findOne({email});
 		if (!user)
 			throw RouterException.BadRequest(`Wrong email or password`);
 
 		const passwordCompare = await bcrypt.compare(password, user.password);
-
 		if (!passwordCompare)
 			throw RouterException.BadRequest(`Wrong email or password`);
 
@@ -52,48 +51,112 @@ class UserService {
 	}
 
 	async refresh(refreshToken) {
-		if ( !refreshToken )
+		if (!refreshToken)
 			throw RouterException.UnauthorizedError();
 
 		const userData = TokenService.verifyRefreshToken(refreshToken);
 		const tokenData = await TokenService.findOneBy('refreshToken', refreshToken);
 
-		if ( !userData || !tokenData )
+		if (!userData || !tokenData)
 			throw RouterException.UnauthorizedError();
 
 		const user = await this.findOneBy('_id', userData.id);
 		return this.userTokenRelations(user);
 	}
 
-	async getUsers() {
-		return await User.find();
+	async getUserData(id) {
+		return await this.findOneBy('_id', id);
 	}
 
 	async activate(link) {
 		const user = await this.findOneBy('activationLink', link);
-		if ( !user )
+		if (!user)
 			throw RouterException.BadRequest();
 
 		user.isActivated = true;
 		return await user.save();
 	}
 
-	async deleteOne(id) {
-		return await User.deleteOne({[key]: value});
+	async getAccessToken(refreshToken) {
+		if (!refreshToken)
+			throw RouterException.UnauthorizedError();
+
+		const userData = TokenService.verifyRefreshToken(refreshToken);
+		const user = await this.findOneBy({_id: userData.id});
+		if (!userData || !user)
+			throw RouterException.UnauthorizedError();
+
+		const userDto = new UserDto(user);
+		return TokenService.generateAccessToken({...userDto});
 	}
 
-	async findOneBy(key, value) {
-		return await User.findOne({[key]: value});
+	async forgotPassword(email) {
+		if (!email || !validateEmail(email))
+			throw RouterException.UnauthorizedError();
+
+		const user = await this.findOneBy('email', email);
+		if (!user)
+			throw RouterException.UnauthorizedError();
+
+		const link = `${process.env.CLIENT_URL}/reset`;
+		await MailService.sendMail(user.email, link, 'reset your password');
+		return {message: 'Please check your email'};
+	}
+
+	async resetPassword(password, id) {
+		if (!password)
+			throw RouterException.BadRequest('Please Enter valid password');
+
+		console.log('password123: ', password);
+		const hashedPassword = await bcrypt.hash(password, 3);
+		await User.findOneAndUpdate({_id: id}, {
+			password: hashedPassword
+		});
+
+		return {message: 'Password reset successfully'};
+	}
+
+	async updateUserData({name}, id) {
+		await User.findOneAndUpdate({_id: id}, {
+			username: name
+		});
+
+		return await this.findOneBy('_id', id);
+	}
+
+	async updateUserRole(id, role) {
+		await User.findOneAndUpdate({_id: id}, {
+			role: role
+		});
+		return {message: 'User role updated successfully'};
+	}
+
+	async deleteUser(id) {
+		await TokenService.deleteOne('userId', id);
+		await this.deleteOne('_id', id);
+		return {message: 'User deleted successfully'};
+	}
+
+	async getUsersList() {
+		return await User.find().select('-password');
 	}
 
 	async userTokenRelations(user) {
 		const dto = new UserDto(user);
-		const tokens = TokenService.generateTokens({...dto});
-		await TokenService.saveToken(dto.id, tokens.refreshToken);
+		const refreshToken = TokenService.generateRefreshToken({...dto});
+		await TokenService.saveToken(dto.id, refreshToken);
 		return {
+			refreshToken,
 			user: {...dto},
-			...tokens
 		};
+	}
+
+	async deleteOne(key, value) {
+		return await User.deleteOne({[key]: value});
+	}
+
+	async findOneBy(key, value) {
+		return await User.findOne({[key]: value}).select('-password');
 	}
 }
 
